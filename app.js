@@ -28,7 +28,7 @@ var serviceAccount = {
   "client_x509_cert_url": process.env.client_x509_cert_url
 }
 ;
-
+const PORT = process.env.PORT || 8081 
 admin.initializeApp({
   credential: admin.cert(serviceAccount)
 });
@@ -270,8 +270,8 @@ app.get('/invites/data/:id', (req, res) => {
 discord_client.login(process.env.BOT_TOKEN);
 
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+app.listen(PORT, () => {
+  console.log("Server running on port "+ PORT);
 });
 
 
