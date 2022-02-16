@@ -1,4 +1,5 @@
 const Express = require('express');
+const axios = require('axios');
 var cors = require('cors')
 var admin = require("firebase-admin/app");
 var firebase_auth = require("firebase-admin/auth");
@@ -14,7 +15,19 @@ const AWS_client = new AWS.DynamoDB.DocumentClient();
 const tableName = 'svs-users';
 const Joi = require('joi');
 const discord_client = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_MEMBERS", "GUILD_PRESENCES"] });
-var serviceAccount = require("./svs_SAK.json");
+var serviceAccount = {
+  "type": process.env.type,
+  "project_id": process.env.project_id,
+  "private_key_id": process.env.private_key_id,
+  "private_key": process.env.private_key,
+  "client_email": process.env.client_email,
+  "client_id": process.env.client_id,
+  "auth_uri": process.env.auth_uri,
+  "token_uri":process.env.token_uri,
+  "auth_provider_x509_cert_url": process.env.auth_provider_x509_cert_url,
+  "client_x509_cert_url": process.env.client_x509_cert_url
+}
+;
 
 admin.initializeApp({
   credential: admin.cert(serviceAccount)
@@ -30,6 +43,14 @@ var User = dynamo.define('user', {
   schema: {
     user_id: Joi.string(),
     data: Joi.string(),
+  }
+});
+
+var Server_id = dynamo.define('server_id', {
+  hashKey: 'id',
+  timestamps: true,
+  schema: {
+    id: Joi.string(),
   }
 });
 
@@ -160,6 +181,91 @@ app.get('/update_user/:id', (req, res) => {
 
   );
 });
+
+
+app.get('/invites/id/:id', (req, res) => {
+  const id = req.params.id;
+  let data = {};
+  Server_id.get(id, function (err, acc) {
+    if (acc === null) {
+      
+      axios.get('https://discord.com/api/invites/' + id)
+  .then(function (response) {
+    data = {id:response.data.guild.id};
+    res.json(data);
+  })
+  .catch(function (error) {
+    
+    res.json(error);
+  })
+  .then(function () {
+    Server_id.update(data, function (err, acc) {
+      //         console.log('created account in DynamoDB', acc.get('user_id'));
+       });
+  });
+
+
+
+    }
+    else {
+       data = acc.get('data');
+      data = JSON.parse(data);
+      console.log(data);
+      res.json(data);
+    }
+
+  });
+
+
+});
+
+
+
+app.get('/invites/data/:id', (req, res) => {
+  const id = req.params.id;
+  axios.get('https://discord.com/api/invites/' + id)
+  .then(function (response) {
+    console.log(response.data.guild);
+  })
+  .catch(function (error) {
+    
+    res.json(error);
+  })
+  .then(function () {
+    // always executed
+  });
+
+
+
+
+//   discord_client.users.fetch(id).then(
+//     user => {
+
+//       let o = {}
+//       o.id = user.id;
+//       o.name = user.username;
+//       o.tag = user.tag;
+//       o.icon = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.webp?`;
+//       const s = discord_client.guilds.cache.get(process.env.SvS_ID);
+//       let member = s.members.cache.get(user.id);
+//       o.isStaff = (member.roles.cache.has(process.env.SvS_Staff_ID));
+//       o.isLeaders = (member.roles.cache.has(process.env.SvS_Leaders_ID));
+//       User.update({ user_id: user.id, data: JSON.stringify(o) }, function (err, acc) {
+//         console.log('created account in DynamoDB', acc.get('user_id'));
+//       });
+//       res.json(user);
+
+//     }
+
+//   );
+});
+
+
+
+
+
+
+
 
 discord_client.login(process.env.BOT_TOKEN);
 
